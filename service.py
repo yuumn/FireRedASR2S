@@ -135,6 +135,45 @@ def convert_audio(input_audio_path, output_wav_path):
     except ffmpeg.Error as e:
         print(f"转换失败，错误信息：\n{e.stderr.decode('utf8')}")
 
+def post_process_merge_result(result):
+    # 合并条件：相同说话人且时间间隔≤1000ms
+    def get_start_end_spk_text(sentence):
+        return {
+            "start": sentence["start_ms"],
+            "end": sentence["end_ms"],
+            "spk": sentence["spk"],
+            "text": sentence["text"],
+        }
+
+    sentences = result["sentences"]
+    sentences = [get_start_end_spk_text(sentence) for sentence in sentences]
+    if len(sentences) <= 1:
+        result["sentences"] = sentences
+        return result
+    
+    # processed_result = []
+    processed_sentences = []
+    sentences_length = len(sentences)
+
+    cur_chunk = sentences[0]
+    for idx in range(1, sentences_length):
+        chunk = sentences[idx]
+        
+        if chunk["spk"] == cur_chunk["spk"] and chunk["start"] - cur_chunk["end"] <= 1000:
+            cur_chunk["text"] += chunk["text"]
+            cur_chunk["end"] = chunk["end"]
+            if idx == sentences_length - 1:
+                processed_sentences.append(cur_chunk)
+            continue
+        
+        processed_sentences.append(cur_chunk)
+        cur_chunk = chunk
+        if idx == sentences_length - 1:
+            processed_sentences.append(cur_chunk)
+    
+    result["sentences"] = processed_sentences
+    return result
+
 # 会议撰写
 # @app.route('/AsrCamWithIdentify', methods=['POST'])
 @app.route('/v1/chat/completions', methods=['POST'])
@@ -185,7 +224,7 @@ def speech_recognition_Timestamp_cam_identify_speakers():
             max_speakers,
         )
 
-
+        result = post_process_merge_result(result)
         # 处理结果
         # processed_result = process_cam_result_with_identify_speakers(result,speaker_db,filepath,identify_speakers)
 
@@ -330,5 +369,5 @@ def process_cam_result_with_identify_speakers(result,speaker_db,filepath,identif
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8881, debug=False)
+    app.run(host='0.0.0.0', port=8882, debug=False)
 

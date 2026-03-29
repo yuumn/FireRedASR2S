@@ -1,3 +1,4 @@
+import os
 from dataclasses import dataclass
 
 @dataclass
@@ -12,7 +13,8 @@ class FireRedASR2Config:
 
     """ ASR Options """
     asr_type: str = "aed" # ["aed", "llm"]
-    asr_model_dir: str = "/workspace/models/FireRedASR2S/FireRedASR2-AED"
+    # asr_model_dir: str = "/workspace/models/FireRedASR2S/FireRedASR2-AED"
+    asr_model_dir: str = os.environ.get("ASR_MODEL", "/workspace/models/FireRedASR2S/FireRedASR2-AED")
     asr_use_gpu: int = 1
     asr_use_half: int = 0
     asr_batch_size: int = 1

@@ -56,10 +56,9 @@ class FireRedAsr2System:
         min_speakers: int | None = None,
         max_speakers: int | None = None,
     ):
-        logger.info(f"1")
         wav_np, sample_rate = sf.read(wav_path, dtype="int16")
         dur = wav_np.shape[0]/sample_rate
-        logger.info(f"2")
+        
         # 1. VAD
         if self.config.enable_vad:
             vad_result, prob = self.vad.detect(

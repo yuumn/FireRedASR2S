@@ -5,6 +5,7 @@ import os
 from dataclasses import dataclass
 
 import torch
+import soundfile as sf
 
 from .core.audio_feat import AudioFeat
 from .core.detect_model import DetectModel
@@ -79,34 +80,32 @@ class FireRedVad:
         min_speakers: int | None = None,
         max_speakers: int | None = None,
     ):
-        # Extract feat
-        logger.info(f"3")
-        feats, dur = self.audio_feat.extract(audio)
-        logger.info(f"4")
-        if self.config.use_gpu:
-            feats = feats.cuda()
+        # # Extract feat
+        # feats, dur = self.audio_feat.extract(audio)
+        # if self.config.use_gpu:
+        #     feats = feats.cuda()
 
-        # Model inference
-        if feats.size(0) <= self.config.chunk_max_frame:
-            probs, _ = self.vad_model.forward(feats.unsqueeze(0))
-            probs = probs.cpu().squeeze()  # (T,)
-        else:
-            logger.warning(f"Too long input, split every {self.config.chunk_max_frame} frames")
-            chunk_probs = []
-            chunks = feats.split(self.config.chunk_max_frame, dim=0)
-            for chunk in chunks:
-                chunk_prob, _ = self.vad_model.forward(chunk.unsqueeze(0))
-                chunk_probs.append(chunk_prob.cpu())
-            probs = torch.cat(chunk_probs, dim=1)
-            probs = probs.squeeze()  # (T,)
+        # # Model inference
+        # if feats.size(0) <= self.config.chunk_max_frame:
+        #     probs, _ = self.vad_model.forward(feats.unsqueeze(0))
+        #     probs = probs.cpu().squeeze()  # (T,)
+        # else:
+        #     logger.warning(f"Too long input, split every {self.config.chunk_max_frame} frames")
+        #     chunk_probs = []
+        #     chunks = feats.split(self.config.chunk_max_frame, dim=0)
+        #     for chunk in chunks:
+        #         chunk_prob, _ = self.vad_model.forward(chunk.unsqueeze(0))
+        #         chunk_probs.append(chunk_prob.cpu())
+        #     probs = torch.cat(chunk_probs, dim=1)
+        #     probs = probs.squeeze()  # (T,)
 
-        if not do_postprocess:
-            return None, probs
+        # if not do_postprocess:
+        #     return None, probs
 
-        # Prob Postprocess
-        decisions = self.vad_postprocessor.process(probs.tolist())
-        starts_ends_s = self.vad_postprocessor.decision_to_segment(decisions, dur)
-        # print(f"starts_ends_s: {starts_ends_s}")
+        # # Prob Postprocess
+        # decisions = self.vad_postprocessor.process(probs.tolist())
+        # starts_ends_s = self.vad_postprocessor.decision_to_segment(decisions, dur)
+        # # print(f"starts_ends_s: {starts_ends_s}")
 
         spk_result = self.spk_model(
             audio,
@@ -130,8 +129,11 @@ class FireRedVad:
         # Format result
         # result = {"dur": round(dur, 3),
         #           "timestamps": starts_ends_s}
-        result = {"dur": round(dur, 3),
-                  "timestamps": starts_ends_s_with_spk}
+        result = {
+            # "dur": round(dur, 3),
+            "timestamps": starts_ends_s_with_spk
+        }
         if isinstance(audio, str):
             result["wav_path"] = audio
-        return result, probs
+        return result, None
+        # return result, probs
