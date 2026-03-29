@@ -9,7 +9,7 @@ ENV PIP_BREAK_SYSTEM_PACKAGES=1
 
 RUN export https_proxy=http://10.7.4.2:3128 && \
     export http_proxy=http://10.7.4.2:3128 && \
-    apt update && apt-get update && apt-get install -y ffmpeg python3.12 python3.12-dev python3-pip && \
+    apt update && apt-get update && apt-get install -y vim ffmpeg python3.12 python3.12-dev python3-pip && \
     update-alternatives --install /usr/bin/python python /usr/bin/python3.12 1 && \
     python -m pip install . && \
     python -m pip install ffmpeg-python && \
@@ -17,6 +17,7 @@ RUN export https_proxy=http://10.7.4.2:3128 && \
     python -m pip install flask && \
     python -m pip install kaldi_native_fbank && \
     python -m pip install pyannote.audio gunicorn gevent nvitop && \
+    python -m pip install torchcodec==0.10 && \
     apt-get clean && rm -rf /var/lib/apt/lists/* \
     unset https_proxy && \
     unset http_proxy
