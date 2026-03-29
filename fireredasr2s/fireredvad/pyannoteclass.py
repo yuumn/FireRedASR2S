@@ -28,7 +28,9 @@ class PyannoteModel:
     def __call__(
         self, 
         input_file: str,
-        num_speakers: int | None = None
+        num_speakers: int | None = None,
+        min_speakers: int | None = None,
+        max_speakers: int | None = None,
     ):
         waveform, sample_rate = torchaudio.load(input_file)
 
@@ -38,6 +40,8 @@ class PyannoteModel:
             output = self.pipeline(
                 audio_in_memory,
                 num_speakers=num_speakers,
+                min_speakers=min_speakers,
+                max_speakers=max_speakers,
             )
 
         return output.serialize()

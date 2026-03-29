@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.1.1-cudnn8-devel-ubuntu22.04
+FROM nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
 
 ARG APP_DIR=/workspace/FireRedASR2S
 WORKDIR ${APP_DIR}
@@ -10,6 +10,7 @@ RUN export https_proxy=http://10.7.4.2:3128 && \
     export http_proxy=http://10.7.4.2:3128 && \
     apt update && apt-get update && apt install -y ffmpeg && \
     pip install . && \
+    pip install ffmpeg-python && \
     pip install omegaconf && \ 
     pip install flask && \
     pip install kaldi_native_fbank && \

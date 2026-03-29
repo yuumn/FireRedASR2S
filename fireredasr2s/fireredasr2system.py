@@ -11,9 +11,14 @@ from fireredasr2s.fireredlid import FireRedLid, FireRedLidConfig
 from fireredasr2s.fireredpunc import FireRedPunc, FireRedPuncConfig
 from fireredasr2s.fireredvad import FireRedVad, FireRedVadConfig
 
+# logging.basicConfig(level=logging.WARNING,
+#     format="%(asctime)s (%(module)s:%(lineno)d) %(levelname)s: %(message)s")
 logging.basicConfig(level=logging.INFO,
     format="%(asctime)s (%(module)s:%(lineno)d) %(levelname)s: %(message)s")
 logger = logging.getLogger("fireredasr2s.asr_system")
+
+
+# logging.basicConfig(level=logging.WARNING)
 
 
 @dataclass
@@ -43,13 +48,26 @@ class FireRedAsr2System:
         self.punc = FireRedPunc.from_pretrained(c.punc_model_dir, c.punc_config) if c.enable_punc else None
         self.config = config
 
-    def process(self, wav_path, uttid="tmpid"):
+    def process(
+        self, 
+        wav_path, 
+        uttid="tmpid",
+        num_speakers: int | None = None,
+        min_speakers: int | None = None,
+        max_speakers: int | None = None,
+    ):
+        logger.info(f"1")
         wav_np, sample_rate = sf.read(wav_path, dtype="int16")
         dur = wav_np.shape[0]/sample_rate
-
+        logger.info(f"2")
         # 1. VAD
         if self.config.enable_vad:
-            vad_result, prob = self.vad.detect(wav_path)
+            vad_result, prob = self.vad.detect(
+                                    wav_path,
+                                    num_speakers=num_speakers,
+                                    min_speakers=min_speakers,
+                                    max_speakers=max_speakers,
+                                )
             vad_segments = vad_result["timestamps"]
             logger.info(f"VAD: {vad_result}")
         else:
@@ -136,7 +154,6 @@ class FireRedAsr2System:
             if self.config.asr_config.return_timestamp:
                 sub_sentences = []
                 if self.config.enable_punc:
-                    logger.info(f"self.config.enable_punc")
                     for i, punc_sent in enumerate(punc_result["punc_sentences"]):
                         start = start_ms + int(punc_sent["start_s"]*1000)
                         end = start_ms + int(punc_sent["end_s"]*1000)
@@ -186,10 +203,8 @@ class FireRedAsr2System:
             
             if "timestamp" in asr_result:
                 for w, s, e in asr_result["timestamp"]:
-                    logger.info(f"for w, s, e in asr_result[]:")
                     word = {"start_ms": int(s*1000+start_ms), "end_ms":int(e*1000+start_ms), "text": w}
                     words.append(word)
-        logger.info(f"vad_segments_ms")
         vad_segments_ms = [(int(s*1000), int(e*1000)) for ((s, e), spk) in vad_result["timestamps"]]
         text = "".join(s["text"] for s in sentences)
         # Add space after English punctuation when followed by a letter

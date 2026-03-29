@@ -71,9 +71,18 @@ class FireRedVad:
         self.vad_postprocessor = vad_postprocessor
         self.config = config
 
-    def detect(self, audio, do_postprocess=True):
+    def detect(
+        self, 
+        audio, 
+        do_postprocess=True,
+        num_speakers: int | None = None,
+        min_speakers: int | None = None,
+        max_speakers: int | None = None,
+    ):
         # Extract feat
+        logger.info(f"3")
         feats, dur = self.audio_feat.extract(audio)
+        logger.info(f"4")
         if self.config.use_gpu:
             feats = feats.cuda()
 
@@ -97,9 +106,14 @@ class FireRedVad:
         # Prob Postprocess
         decisions = self.vad_postprocessor.process(probs.tolist())
         starts_ends_s = self.vad_postprocessor.decision_to_segment(decisions, dur)
-        print(f"starts_ends_s: {starts_ends_s}")
+        # print(f"starts_ends_s: {starts_ends_s}")
 
-        spk_result = self.spk_model(audio)
+        spk_result = self.spk_model(
+            audio,
+            num_speakers=num_speakers,
+            min_speakers=min_speakers,
+            max_speakers=max_speakers,
+        )
         # spk_result = 
         starts_ends_s_with_spk = [((chunk["start"], chunk["end"]), chunk["speaker"]) for chunk in spk_result["exclusive_diarization"]]
         

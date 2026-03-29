@@ -27,10 +27,10 @@ class ChineseCharEnglishSpmTokenizer:
             self.sp.Load(spm_model)
         else:
             self.sp = None
-            print("[WRAN] Not set spm_model, will use English char")
-            print("[WARN] Please check how to deal with ' '(space)")
-            if self.space not in self.dict:
-                print("Please add <space> to your dict, or it will be <unk>")
+            # print("[WRAN] Not set spm_model, will use English char")
+            # print("[WARN] Please check how to deal with ' '(space)")
+            # if self.space not in self.dict:
+            #     print("Please add <space> to your dict, or it will be <unk>")
 
     def tokenize(self, text, replace_punc=True):
         #if text == "":

@@ -10,6 +10,7 @@
 from flask import Flask, request, jsonify
 import os
 import json
+import ffmpeg
 # import re
 from werkzeug.utils import secure_filename
 import torch
@@ -31,22 +32,29 @@ from fireredasr2s.fireredlid import FireRedLidConfig
 from fireredasr2s.fireredpunc import FireRedPuncConfig
 from fireredasr2s.fireredvad import FireRedVadConfig
 
+
+
 app = Flask(__name__)
 app.config['JSON_AS_ASCII'] = False  # 兼容旧版 Flask (< 2.2)
 app.json.ensure_ascii = False        # 兼容新版 Flask (>= 2.2)
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s (%(module)s:%(lineno)d) %(levelname)s: %(message)s")
+# logging.basicConfig(level=logging.WARNING,
+#                     format="%(asctime)s (%(module)s:%(lineno)d) %(levelname)s: %(message)s")
 logger = logging.getLogger("fireredasr2s.asr_system")
 
 args = OmegaConf.structured(FireRedASR2Config)
 
-# logging.disable(logging.CRITICAL)
+# logging.basicConfig(level=logging.WARNING)
 
 # 配置上传文件夹
 UPLOAD_FOLDER = 'uploads'
+UPLOAD_CONVERT_FOLDER = 'uploads_convert'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(UPLOAD_CONVERT_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['UPLOAD_CONVERT_FOLDER'] = UPLOAD_CONVERT_FOLDER
 
 # Build Models
 # VAD
@@ -99,13 +107,33 @@ def get_wav_info(wav_path):
     Returns:
         wavs: list of (uttid, wav_path)
     """
-    def base(p): return os.path.basename(p).replace(".wav", "")
+    # def base(p): return os.path.basename(p).replace(".wav", "")
+    def base(p): return os.path.basename(p).rsplit(".", 1)[0]
     if wav_path:
         wavs = (base(wav_path), wav_path)
     else:
         raise ValueError("Please provide valid wav info")
     # logger.info(f"#wavs={len(wavs)}")
     return wavs
+
+def convert_audio(input_audio_path, output_wav_path):
+    try:
+        (
+            ffmpeg
+            .input(input_audio_path)
+            .output(
+                output_wav_path, 
+                ar=16000, 
+                ac=1, 
+                acodec='pcm_s16le', 
+                f='wav'
+            )
+            .overwrite_output() 
+            .run(capture_stdout=True, capture_stderr=True)
+        )
+        print(f"转换成功：{output_wav_path}")
+    except ffmpeg.Error as e:
+        print(f"转换失败，错误信息：\n{e.stderr.decode('utf8')}")
 
 # 会议撰写
 # @app.route('/AsrCamWithIdentify', methods=['POST'])
@@ -122,22 +150,47 @@ def speech_recognition_Timestamp_cam_identify_speakers():
     # 保存上传文件
     filename = secure_filename(file.filename)
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    filepath_convert = os.path.join(app.config['UPLOAD_CONVERT_FOLDER'], filename.rsplit(".", 1)[0] + ".wav")
     file.save(filepath)
+
+    convert_audio(filepath, filepath_convert)
+
+
+    # 提取 num_speakers min_speakers max_speakers
+    num_speakers = request.form.get('num_speakers', None)
+    if num_speakers is not None:
+        num_speakers = int(num_speakers)
+
+    min_speakers = request.form.get('min_speakers', None)
+    if min_speakers is not None:
+        min_speakers = int(min_speakers)
+
+    max_speakers = request.form.get('max_speakers', None)
+    if max_speakers is not None:
+        max_speakers = int(max_speakers)
+    
+    print(f"num_speakers: {num_speakers}")
+    print(f"min_speakers: {min_speakers}")
+    print(f"max_speakers: {max_speakers}")
+
 
     try:
         # 执行语音识别
-        uttid, _ = get_wav_info(filepath)
-        result = asr_system.process(filepath, uttid)
+        uttid, _ = get_wav_info(filepath_convert)
+        result = asr_system.process(
+            filepath_convert, 
+            uttid,
+            num_speakers,
+            min_speakers,
+            max_speakers,
+        )
 
-        # result = result.pop("wav_path")
-        # result = result.pop("words")
-        # result = result.pop("text")
-        # result = result.pop("vad_segments_ms")
 
         # 处理结果
         # processed_result = process_cam_result_with_identify_speakers(result,speaker_db,filepath,identify_speakers)
 
         os.remove(filepath)
+        os.remove(filepath_convert)
         if len(result) == 0:
             return jsonify({
                 "status": "error",
@@ -155,6 +208,9 @@ def speech_recognition_Timestamp_cam_identify_speakers():
         print(f"错误信息: {str(e)}")
         if os.path.exists(filepath):
             os.remove(filepath)
+        if os.path.exists(filepath_convert):
+            os.remove(filepath_convert)
+        
         return jsonify({"error": str(e)}), 500
 
 
