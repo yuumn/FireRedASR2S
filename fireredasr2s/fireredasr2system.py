@@ -59,10 +59,11 @@ class FireRedAsr2System:
         # 2. VAD output to ASR input
         asr_results = []
         lid_results = []
+        spk_results = []
         assert sample_rate == 16000
         batch_asr_uttid = []
         batch_asr_wav = []
-        for j, (start_s, end_s) in enumerate(vad_segments):
+        for j, ((start_s, end_s), spk) in enumerate(vad_segments):
             wav_segment = wav_np[int(start_s*sample_rate):int(end_s*sample_rate)]
             vad_uttid = f"{uttid}_s{int(start_s*1000)}_e{int(end_s*1000)}"
             batch_asr_uttid.append(vad_uttid)
@@ -89,6 +90,7 @@ class FireRedAsr2System:
                     continue
                 asr_results.append(a_res)
                 lid_results.append(l_res)
+                spk_results.append(spk)
 
             batch_asr_uttid = []
             batch_asr_wav = []
@@ -126,7 +128,7 @@ class FireRedAsr2System:
         # 6. Put all together & Format
         sentences = []
         words = []
-        for asr_result, punc_result, lid_result in zip(asr_results, punc_results, lid_results):
+        for asr_result, punc_result, lid_result, spk_result in zip(asr_results, punc_results, lid_results, spk_results):
             assert asr_result["uttid"] == punc_result["uttid"], f"fix code: {asr_result} | {punc_result}"
             start_ms, end_ms = asr_result["uttid"].split("_")[-2:]
             assert start_ms.startswith("s") and end_ms.startswith("e")
@@ -134,6 +136,7 @@ class FireRedAsr2System:
             if self.config.asr_config.return_timestamp:
                 sub_sentences = []
                 if self.config.enable_punc:
+                    logger.info(f"self.config.enable_punc")
                     for i, punc_sent in enumerate(punc_result["punc_sentences"]):
                         start = start_ms + int(punc_sent["start_s"]*1000)
                         end = start_ms + int(punc_sent["end_s"]*1000)
@@ -144,6 +147,7 @@ class FireRedAsr2System:
                         sub_sentence = {
                             "start_ms": start,
                             "end_ms": end,
+                            "spk": spk_result,
                             "text": punc_sent["punc_text"],
                             "asr_confidence": asr_result["confidence"],
                             "lang": None,
@@ -157,6 +161,7 @@ class FireRedAsr2System:
                     sub_sentences = [{
                         "start_ms": start_ms,
                         "end_ms": end_ms,
+                        "spk": spk_result,
                         "text": asr_result["text"],
                         "asr_confidence": asr_result["confidence"],
                         "lang": None,
@@ -169,6 +174,7 @@ class FireRedAsr2System:
                     "start_ms": start_ms,
                     "end_ms": end_ms,
                     "text": text,
+                    "spk": spk_result,
                     "asr_confidence": asr_result["confidence"],
                     "lang": None,
                     "lang_confidence": 0
@@ -180,10 +186,11 @@ class FireRedAsr2System:
             
             if "timestamp" in asr_result:
                 for w, s, e in asr_result["timestamp"]:
+                    logger.info(f"for w, s, e in asr_result[]:")
                     word = {"start_ms": int(s*1000+start_ms), "end_ms":int(e*1000+start_ms), "text": w}
                     words.append(word)
-
-        vad_segments_ms = [(int(s*1000), int(e*1000)) for s, e in vad_result["timestamps"]]
+        logger.info(f"vad_segments_ms")
+        vad_segments_ms = [(int(s*1000), int(e*1000)) for ((s, e), spk) in vad_result["timestamps"]]
         text = "".join(s["text"] for s in sentences)
         # Add space after English punctuation when followed by a letter
         text = re.sub(r'([.,!?])\s*([a-zA-Z])', r'\1 \2', text)
@@ -192,9 +199,9 @@ class FireRedAsr2System:
             "uttid": uttid,
             "text": text,
             "sentences": sentences,
-            "vad_segments_ms": vad_segments_ms,
+            # "vad_segments_ms": vad_segments_ms,
             "dur_s": dur,
-            "words": words,
-            "wav_path": wav_path
+            # "words": words,
+            # "wav_path": wav_path
         }
         return result

@@ -9,6 +9,7 @@ import torch
 from .core.audio_feat import AudioFeat
 from .core.detect_model import DetectModel
 from .core.vad_postprocessor import VadPostprocessor
+from .pyannoteclass import PyannoteModel
 
 logger = logging.getLogger(__name__)
 
@@ -24,11 +25,13 @@ class FireRedVadConfig:
     merge_silence_frame: int = 0
     extend_speech_frame: int = 0
     chunk_max_frame: int = 30000  # 300s
+    spk_model_dir: int = "/workspace/models/FireRedASR2S/pyannote/speaker-diarization-community-1"
     def __post_init__(self):
         if self.speech_threshold < 0 or self.speech_threshold > 1:
             raise ValueError("speech_threshold must be in [0, 1]")
         if self.min_speech_frame <= 0:
             raise ValueError("min_speech_frame must be positive")
+
 
 
 
@@ -41,6 +44,10 @@ class FireRedVad:
 
         # Build Model
         vad_model = DetectModel.from_pretrained(model_dir)
+        spk_model = PyannoteModel(
+            model_path=config.spk_model_dir,
+            use_gpu=config.use_gpu,
+        )
         if config.use_gpu:
             vad_model.cuda()
         else:
@@ -55,11 +62,12 @@ class FireRedVad:
             config.min_silence_frame,
             config.merge_silence_frame,
             config.extend_speech_frame)
-        return cls(audio_feat, vad_model, vad_postprocessor, config)
+        return cls(audio_feat, vad_model, spk_model, vad_postprocessor, config)
 
-    def __init__(self, audio_feat, vad_model, vad_postprocessor, config):
+    def __init__(self, audio_feat, vad_model, spk_model, vad_postprocessor, config):
         self.audio_feat = audio_feat
         self.vad_model = vad_model
+        self.spk_model = spk_model
         self.vad_postprocessor = vad_postprocessor
         self.config = config
 
@@ -89,10 +97,27 @@ class FireRedVad:
         # Prob Postprocess
         decisions = self.vad_postprocessor.process(probs.tolist())
         starts_ends_s = self.vad_postprocessor.decision_to_segment(decisions, dur)
+        print(f"starts_ends_s: {starts_ends_s}")
 
+        spk_result = self.spk_model(audio)
+        # spk_result = 
+        starts_ends_s_with_spk = [((chunk["start"], chunk["end"]), chunk["speaker"]) for chunk in spk_result["exclusive_diarization"]]
+        
+        # for chunk in spk_result["exclusive_diarization"]:
+        #     start = chunk["start"]
+        #     end = chunk["end"]
+        #     spk = chunk["speaker"]
+        #     print(f"{start} {end} {spk}")
+        #     starts_ends_s_with_spk.append()
+
+        """
+        starts_ends_s: [(0.75, 9.74), (9.75, 11.21), (11.93, 14.77), (15.39, 16.51), (18.32, 22.55), (22.86, 24.03), (25.24, 33.95), (33.96, 41.32), (41.33, 48.76), (48.77, 53.52), (54.9, 56.28), (58.39, 59.13), (60.01, 61.43), (62.55, 65.19), (66.49, 75.6), (75.61, 82.59), (83.59, 89.9), (89.91, 99.52), (99.53, 108.31), (108.32, 117.25), (117.26, 122.86), (122.87, 132.86), (132.87, 138.66), (138.67, 146.77), (147.1, 156.86), (157.53, 165.23), (165.24, 167.63), (168.13, 175.17), (175.18, 180.69), (180.7, 185.91), (191.23, 197.45), (197.46, 201.54), (203.18, 210.53), (210.54, 220.26), (220.27, 222.1), (222.42, 224.69), (225.48, 228.01), (228.63, 235.66), (236.94, 243.3), (245.18, 248.02), (249.01, 249.91), (250.24, 255.76), (257.69, 259.24), (259.66, 265.79), (265.8, 274.42), (274.79, 284.66), (286.43, 290.51), (291.7, 298.64), (300.29, 304.896)]
+        """
         # Format result
+        # result = {"dur": round(dur, 3),
+        #           "timestamps": starts_ends_s}
         result = {"dur": round(dur, 3),
-                  "timestamps": starts_ends_s}
+                  "timestamps": starts_ends_s_with_spk}
         if isinstance(audio, str):
             result["wav_path"] = audio
         return result, probs

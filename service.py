@@ -41,6 +41,7 @@ logger = logging.getLogger("fireredasr2s.asr_system")
 
 args = OmegaConf.structured(FireRedASR2Config)
 
+# logging.disable(logging.CRITICAL)
 
 # 配置上传文件夹
 UPLOAD_FOLDER = 'uploads'
@@ -58,7 +59,8 @@ vad_config = FireRedVadConfig(
     args.min_silence_frame,
     args.merge_silence_frame,
     args.extend_speech_frame,
-    args.vad_chunk_max_frame
+    args.vad_chunk_max_frame,
+    args.spk_model_dir,
 )
 # LID
 lid_config = FireRedLidConfig(args.lid_use_gpu)
