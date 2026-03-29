@@ -369,5 +369,5 @@ def process_cam_result_with_identify_speakers(result,speaker_db,filepath,identif
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8882, debug=False)
+    app.run(host='0.0.0.0', port=8081, debug=False)
 

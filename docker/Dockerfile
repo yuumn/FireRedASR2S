@@ -1,20 +1,23 @@
-FROM nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
+FROM artifactory.devops.xiaohongshu.com/dockerhub/nvidia/cuda:12.8.1-cudnn-devel-ubuntu24.04
 
 ARG APP_DIR=/workspace/FireRedASR2S
 WORKDIR ${APP_DIR}
 COPY . .
 
 ENV PYANNOTE_METRICS_ENABLED=0
+ENV PIP_BREAK_SYSTEM_PACKAGES=1
 
 RUN export https_proxy=http://10.7.4.2:3128 && \
     export http_proxy=http://10.7.4.2:3128 && \
-    apt update && apt-get update && apt install -y ffmpeg && \
-    pip install . && \
-    pip install ffmpeg-python && \
-    pip install omegaconf && \ 
-    pip install flask && \
-    pip install kaldi_native_fbank && \
-    pip install pyannote.audio && \
+    apt update && apt-get update && apt-get install -y ffmpeg python3.12 python3.12-dev python3-pip && \
+    update-alternatives --install /usr/bin/python python /usr/bin/python3.12 1 && \
+    python -m pip install . && \
+    python -m pip install ffmpeg-python && \
+    python -m pip install omegaconf && \
+    python -m pip install flask && \
+    python -m pip install kaldi_native_fbank && \
+    python -m pip install pyannote.audio gunicorn gevent nvitop && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* \
     unset https_proxy && \
     unset http_proxy
 

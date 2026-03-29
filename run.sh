@@ -9,7 +9,7 @@
 WORK_DIR="/workspace/FireRedASR2S"
 HOST="0.0.0.0"
 PORT=8081
-WORKERS=8
+WORKERS=4
 TIMEOUT=900
 
 # 帮助信息
