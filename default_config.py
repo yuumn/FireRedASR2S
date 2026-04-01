@@ -43,6 +43,7 @@ class FireRedASR2Config:
     speech_threshold: float = 0.2
     min_speech_frame: int = 20
     max_speech_frame: int = 1000
+    
     min_silence_frame: int = 10
     merge_silence_frame: int = 50
     extend_speech_frame: int = 10

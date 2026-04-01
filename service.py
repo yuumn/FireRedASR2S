@@ -136,7 +136,8 @@ def convert_audio(input_audio_path, output_wav_path):
         print(f"转换失败，错误信息：\n{e.stderr.decode('utf8')}")
 
 def post_process_merge_result(result):
-    # 合并条件：相同说话人且时间间隔≤1000ms
+    # return result
+    # 合并条件：相同说话人且时间间隔≤200ms
     def get_start_end_spk_text(sentence):
         return {
             "start": sentence["start_ms"],
@@ -159,7 +160,7 @@ def post_process_merge_result(result):
     for idx in range(1, sentences_length):
         chunk = sentences[idx]
         
-        if chunk["spk"] == cur_chunk["spk"] and chunk["start"] - cur_chunk["end"] <= 1000:
+        if chunk["spk"] == cur_chunk["spk"] and chunk["start"] - cur_chunk["end"] <= 200:
             cur_chunk["text"] += chunk["text"]
             cur_chunk["end"] = chunk["end"]
             if idx == sentences_length - 1:

@@ -10,16 +10,71 @@ from fireredasr2s.fireredasr2 import FireRedAsr2, FireRedAsr2Config
 from fireredasr2s.fireredlid import FireRedLid, FireRedLidConfig
 from fireredasr2s.fireredpunc import FireRedPunc, FireRedPuncConfig
 from fireredasr2s.fireredvad import FireRedVad, FireRedVadConfig
+from typing import List, Dict
+from collections import defaultdict
 
-# logging.basicConfig(level=logging.WARNING,
-#     format="%(asctime)s (%(module)s:%(lineno)d) %(levelname)s: %(message)s")
 logging.basicConfig(level=logging.INFO,
     format="%(asctime)s (%(module)s:%(lineno)d) %(levelname)s: %(message)s")
 logger = logging.getLogger("fireredasr2s.asr_system")
 
 
-# logging.basicConfig(level=logging.WARNING)
 
+def assign_speaker_to_segments(
+    segments: List[Dict],
+    speaker_turns: List[Dict],
+) -> List[Dict]:
+    """为每个分割片段分配说话人 ID。
+
+    Parameters
+    ----------
+    segments : list of dict
+    每个元素形如 {"start": float, "end": float, "text": str}
+    speaker_turns : list of dict
+    每个元素形如 {"start": float, "end": float, "speaker": str}
+
+    Returns
+    -------
+    list of dict
+    每个元素形如 {"start", "end", "text", "speaker"}
+    """
+
+    def overlap(a_start, a_end, b_start, b_end) -> float:
+        left = max(a_start, b_start)
+        right = min(a_end, b_end)
+        return max(0.0, right - left)
+
+    results = []
+
+    for seg in segments:
+        seg_start, seg_end = seg
+        best_speaker = "UNKNOWN"
+        best_overlap = 0.0
+        speaker_time_map = defaultdict(float)
+
+        for ((spk_start, spk_end), spk) in speaker_turns:
+            if spk_start > seg_end:
+                break
+            ov = overlap(seg_start, seg_end, spk_start, spk_end)
+            speaker_time_map[spk] += ov
+            # if ov >= best_overlap:
+            #     best_overlap = ov
+            #     best_speaker = spk
+        
+        for spk_key, overlap_value in speaker_time_map.items():
+            if overlap_value >= best_overlap:
+                best_overlap = ov
+                best_speaker = spk_key
+
+
+        results.append(((seg_start, seg_end), best_speaker))
+        # results.append({
+        #     "start": seg_start,
+        #     "end": seg_end,
+        #     # "text": seg["text"],
+        #     "speaker": best_speaker,
+        # })
+
+    return results
 
 @dataclass
 class FireRedAsr2SystemConfig:
@@ -67,12 +122,19 @@ class FireRedAsr2System:
                                     min_speakers=min_speakers,
                                     max_speakers=max_speakers,
                                 )
-            vad_segments = vad_result["timestamps"]
+            vad_segments = vad_result["timestamps"] # [(start, end), ...]
+            pyannote_spk_segments = vad_result["timestamps_with_spk"] # [((start, end), spk), ...]
+
             logger.info(f"VAD: {vad_result}")
         else:
             vad_segments = [(0, dur)]
             vad_result = {"timestamps" : vad_segments}
 
+        vad_segments = assign_speaker_to_segments(vad_segments, pyannote_spk_segments)
+        logger.info(f"pyannote_spk_segments: {pyannote_spk_segments}")
+        logger.info(f"vad_segments_with_speaker: {vad_segments}")
+        # with open(f"pyannote_spk_segments.txt", "w") as f:
+            # f.write
         # 2. VAD output to ASR input
         asr_results = []
         lid_results = []
@@ -82,7 +144,7 @@ class FireRedAsr2System:
         batch_asr_wav = []
         for j, ((start_s, end_s), spk) in enumerate(vad_segments):
         # for j, (start_s, end_s)in enumerate(vad_segments):
-        #     spk = ""
+            # spk = ""
             wav_segment = wav_np[int(start_s*sample_rate):int(end_s*sample_rate)]
             vad_uttid = f"{uttid}_s{int(start_s*1000)}_e{int(end_s*1000)}"
             batch_asr_uttid.append(vad_uttid)
@@ -208,7 +270,7 @@ class FireRedAsr2System:
                 for w, s, e in asr_result["timestamp"]:
                     word = {"start_ms": int(s*1000+start_ms), "end_ms":int(e*1000+start_ms), "text": w}
                     words.append(word)
-        vad_segments_ms = [(int(s*1000), int(e*1000)) for ((s, e), spk) in vad_result["timestamps"]]
+        vad_segments_ms = [(int(s*1000), int(e*1000)) for ((s, e), spk) in vad_segments]
         # vad_segments_ms = [(int(s*1000), int(e*1000)) for (s, e) in vad_result["timestamps"]]
         text = "".join(s["text"] for s in sentences)
         # Add space after English punctuation when followed by a letter
