@@ -12,10 +12,10 @@ class FireRedASR2Config:
     enable_spk: int = 1
 
     """ ASR Options """
-    asr_type: str = "aed" # ["aed", "llm"]
-    # asr_type: str = os.environ.get("ASR_TYPE", "aed") # ["aed", "llm"]
+    # asr_type: str = "aed" # ["aed", "llm"]
+    asr_type: str = os.environ.get("ASR_TYPE", "aed") # ["aed", "llm"]
 
-    asr_model_dir: str = "/workspace/models/FireRedASR2S/FireRedASR2-AED"
+    asr_model_dir: str = "/workspace/models/FireRedASR2S/FireRedASR2-AED" # asr_type == "aed"
     # asr_model_dir: str = os.environ.get("ASR_MODEL", "/workspace/models/FireRedASR2S/FireRedASR2-AED")
     asr_use_gpu: int = 1
     asr_use_half: int = 0
@@ -28,7 +28,8 @@ class FireRedASR2Config:
     softmax_smoothing: float = 1.25
     aed_length_penalty: float = 0.6
     eos_penalty: float = 1.0
-    return_timestamp: int = 0
+    return_timestamp: int = 1 if os.environ.get("ASR_TYPE", "aed") == "aed" else 0
+
     # FireRedASR-AED External LM
     elm_dir: str = ""
     elm_weight: float = 0.0

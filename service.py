@@ -40,13 +40,11 @@ app.json.ensure_ascii = False        # 兼容新版 Flask (>= 2.2)
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s (%(module)s:%(lineno)d) %(levelname)s: %(message)s")
-# logging.basicConfig(level=logging.WARNING,
-#                     format="%(asctime)s (%(module)s:%(lineno)d) %(levelname)s: %(message)s")
+
 logger = logging.getLogger("fireredasr2s.asr_system")
 
 args = OmegaConf.structured(FireRedASR2Config)
 
-# logging.basicConfig(level=logging.WARNING)
 
 # 配置上传文件夹
 UPLOAD_FOLDER = 'uploads'

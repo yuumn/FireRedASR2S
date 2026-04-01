@@ -118,7 +118,7 @@ class KaldifeatFbank:
         for i in range(fbank.num_frames_ready):
             feat.append(fbank.get_frame(i))
         if len(feat) == 0:
-            print("Check data, len(feat) == 0", wav, flush=True)
+            # print("Check data, len(feat) == 0", wav, flush=True)
             return np.zeros((0, self.opts.mel_opts.num_bins))
         feat = np.vstack(feat)
         return feat
