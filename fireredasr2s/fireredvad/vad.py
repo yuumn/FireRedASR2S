@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class FireRedVadConfig:
-    use_gpu: bool = False
+    use_gpu: bool = True
     smooth_window_size: int = 5
     speech_threshold: float = 0.4
     min_speech_frame: int = 20
@@ -113,15 +113,38 @@ class FireRedVad:
             min_speakers=min_speakers,
             max_speakers=max_speakers,
         )
-        # spk_result = 
+        
         starts_ends_s_with_spk = [((chunk["start"], chunk["end"]), chunk["speaker"]) for chunk in spk_result["exclusive_diarization"]]
         
-        # for chunk in spk_result["exclusive_diarization"]:
-        #     start = chunk["start"]
-        #     end = chunk["end"]
-        #     spk = chunk["speaker"]
-        #     print(f"{start} {end} {spk}")
-        #     starts_ends_s_with_spk.append()
+        
+        # def merge_result(result, gap_threshold_ms=500):
+        #     if len(result) <= 1:
+        #         return result
+            
+        #     result_merge = []
+        #     result_length = len(result)
+        #     cur_chunk = result[0]
+        #     for idx in range(1, result_length):
+        #         chunk = result[idx]
+        #         if chunk["speaker"] == cur_chunk["speaker"] and chunk["start"] - cur_chunk["end"] <= gap_threshold_ms:
+        #             cur_chunk["end"] = chunk["end"]
+        #             if idx == result_length - 1 or cur_chunk["end"] - cur_chunk["start"] >= 30000:
+        #                 result_merge.append(cur_chunk)
+        #             continue
+        #         result_merge.append(cur_chunk)
+        #         cur_chunk = chunk
+        #         if idx == result_length - 1:
+        #             result_merge.append(cur_chunk)
+        #     return result_merge
+        
+        # starts_ends_s_with_spk = merge_result(
+        #     spk_result["exclusive_diarization"], 
+        #     # spk_result["diarization"], 
+        #     500
+        # )
+
+        # starts_ends_s_with_spk = [((chunk["start"], chunk["end"]), chunk["speaker"]) for chunk in starts_ends_s_with_spk]
+
 
         """
         starts_ends_s: [(0.75, 9.74), (9.75, 11.21), (11.93, 14.77), (15.39, 16.51), (18.32, 22.55), (22.86, 24.03), (25.24, 33.95), (33.96, 41.32), (41.33, 48.76), (48.77, 53.52), (54.9, 56.28), (58.39, 59.13), (60.01, 61.43), (62.55, 65.19), (66.49, 75.6), (75.61, 82.59), (83.59, 89.9), (89.91, 99.52), (99.53, 108.31), (108.32, 117.25), (117.26, 122.86), (122.87, 132.86), (132.87, 138.66), (138.67, 146.77), (147.1, 156.86), (157.53, 165.23), (165.24, 167.63), (168.13, 175.17), (175.18, 180.69), (180.7, 185.91), (191.23, 197.45), (197.46, 201.54), (203.18, 210.53), (210.54, 220.26), (220.27, 222.1), (222.42, 224.69), (225.48, 228.01), (228.63, 235.66), (236.94, 243.3), (245.18, 248.02), (249.01, 249.91), (250.24, 255.76), (257.69, 259.24), (259.66, 265.79), (265.8, 274.42), (274.79, 284.66), (286.43, 290.51), (291.7, 298.64), (300.29, 304.896)]

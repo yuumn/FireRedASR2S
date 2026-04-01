@@ -10,3 +10,7 @@ utt2event
 pretrained_models/
 *.swp
 *.swo
+*.m4a
+output/
+github_old/
+logs/

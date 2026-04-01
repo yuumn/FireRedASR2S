@@ -144,7 +144,8 @@ def main(args):
         logger.info(f"FINAL: {result}")
 
         if fout:
-            fout.write(f"{json.dumps(result, ensure_ascii=False)}\n")
+            # fout.write(f"{json.dumps(result, ensure_ascii=False)}\n")
+            fout.write(f"{json.dumps(result, indent=4, ensure_ascii=False)}\n")
             fout.flush()
         name = os.path.basename(wav_path).replace(".wav", "")
         if args.write_textgrid:

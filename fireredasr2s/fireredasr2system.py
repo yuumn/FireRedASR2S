@@ -81,6 +81,8 @@ class FireRedAsr2System:
         batch_asr_uttid = []
         batch_asr_wav = []
         for j, ((start_s, end_s), spk) in enumerate(vad_segments):
+        # for j, (start_s, end_s)in enumerate(vad_segments):
+        #     spk = ""
             wav_segment = wav_np[int(start_s*sample_rate):int(end_s*sample_rate)]
             vad_uttid = f"{uttid}_s{int(start_s*1000)}_e{int(end_s*1000)}"
             batch_asr_uttid.append(vad_uttid)
@@ -129,10 +131,12 @@ class FireRedAsr2System:
                     continue
 
                 # 5. Punc
+                logger.info(f"batch_asr_text: {batch_asr_text}")
                 if self.config.asr_config.return_timestamp:
                     batch_punc_results = self.punc.process_with_timestamp(batch_asr_timestamp, batch_asr_uttid)
                 else:
                     batch_punc_results = self.punc.process(batch_asr_text, batch_asr_uttid)
+                # logger.info(f"batch_asr_text: {batch_asr_text}")
                 logger.info(f"Punc: {batch_punc_results}")
 
                 punc_results.extend(batch_punc_results)
@@ -165,7 +169,7 @@ class FireRedAsr2System:
                             "end_ms": end,
                             "spk": spk_result,
                             "text": punc_sent["punc_text"],
-                            "asr_confidence": asr_result["confidence"],
+                            # "asr_confidence": asr_result["confidence"],
                             "lang": None,
                             "lang_confidence": 0
                         }
@@ -179,7 +183,7 @@ class FireRedAsr2System:
                         "end_ms": end_ms,
                         "spk": spk_result,
                         "text": asr_result["text"],
-                        "asr_confidence": asr_result["confidence"],
+                        # "asr_confidence": asr_result["confidence"],
                         "lang": None,
                         "lang_confidence": 0
                     }]
@@ -191,7 +195,7 @@ class FireRedAsr2System:
                     "end_ms": end_ms,
                     "text": text,
                     "spk": spk_result,
-                    "asr_confidence": asr_result["confidence"],
+                    # "asr_confidence": asr_result["confidence"],
                     "lang": None,
                     "lang_confidence": 0
                 }
@@ -205,6 +209,7 @@ class FireRedAsr2System:
                     word = {"start_ms": int(s*1000+start_ms), "end_ms":int(e*1000+start_ms), "text": w}
                     words.append(word)
         vad_segments_ms = [(int(s*1000), int(e*1000)) for ((s, e), spk) in vad_result["timestamps"]]
+        # vad_segments_ms = [(int(s*1000), int(e*1000)) for (s, e) in vad_result["timestamps"]]
         text = "".join(s["text"] for s in sentences)
         # Add space after English punctuation when followed by a letter
         text = re.sub(r'([.,!?])\s*([a-zA-Z])', r'\1 \2', text)
