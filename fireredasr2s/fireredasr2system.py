@@ -17,6 +17,39 @@ logging.basicConfig(level=logging.INFO,
     format="%(asctime)s (%(module)s:%(lineno)d) %(levelname)s: %(message)s")
 logger = logging.getLogger("fireredasr2s.asr_system")
 
+def is_chinese_char(ch: str) -> bool:
+    cp = ord(ch)
+    return (0x4E00 <= cp <= 0x9FFF        # CJK Unified Ideographs
+         or 0x3400 <= cp <= 0x4DBF        # CJK Extension A
+         or 0x20000 <= cp <= 0x2A6DF      # CJK Extension B
+         or 0xF900 <= cp <= 0xFAFF        # CJK Compatibility
+         or 0x2F800 <= cp <= 0x2FA1F)     # CJK Compatibility Supplement
+
+def classify_text(text: str) -> str:
+    cn, en = 0, 0
+    for ch in text:
+        if is_chinese_char(ch):
+            cn += 1
+        elif ch.isascii() and ch.isalpha():
+            en += 1
+    if cn and not en:
+        return "zh"
+    if en and not cn:
+        return "en"
+    if cn > en:
+        return "zh"
+    return "en"
+
+def merge_text_func(
+    merge_text: str,
+    t: str,
+):
+    x = classify_text(merge_text[-1])
+    y = classify_text(t)
+    if x == "en" and y == "en" and merge_text[-1] != " " and t[0] != " ":
+        return x + " " + y
+    
+    return x + y
 
 
 def assign_speaker_to_segments(
@@ -76,6 +109,74 @@ def assign_speaker_to_segments(
 
     return results
 
+
+def assign_words_to_speakers(
+    words: list[tuple[str, float, float]],
+    segments: list[tuple[tuple[float, float], str]],
+    uttid: str,
+) -> list[tuple[str, list[str]]]:
+    """
+    将带时间戳的单词分配到对应的说话人片段中。
+    匹配逻辑：计算每个单词与每个片段的时间重叠量，
+    将单词分配给重叠最大的片段。
+    Args:
+        words:    [("word", start_time, end_time), ...]
+        segments: [((start_time, end_time), spk), ...]
+    Returns:
+        [(spk, [word1, word2, ...]), ...] 按片段原始顺序排列
+    """
+    def overlap(word_start, word_end, spk_start, spk_end, ratio: float = 0.7):
+        start = max(word_start, spk_start)
+        end = min(word_end, spk_end)
+        overlap_time = max(0.0, end - start)
+        return overlap_time
+        # if overlap_time / (word_end - word_start) >= ratio:
+        #     return True
+        # return False
+
+    # 为每个片段初始化空单词列表，保持原始顺序
+    result: dict[int, list[str]] = {i: [] for i in range(len(segments))}
+    timestamp_result: dict[int, list[tuple(str, float, float)]] = {i: [] for i in range(len(segments))}
+    for word, w_start, w_end in words:
+        if word == "<sil>" or word == "<blank>":
+            continue
+
+        best_idx = -1
+        best_overlap = 0.0
+        for i, ((s_start, s_end), _spk) in enumerate(segments):
+            # 计算时间重叠
+            ov = overlap(w_start, w_end, s_start, s_end)
+            if ov >= best_overlap:
+                best_overlap = ov
+                best_idx = i
+        
+        if best_idx >= 0:
+            result[best_idx].append(word)
+            timestamp_result[best_idx].append((word, w_start, w_end))
+    
+    asr_spk_merged = []
+    for i, ((s_start, s_end), _spk) in enumerate(segments):
+        if len(result[i]) == 0:
+            continue
+
+        merge_text = result[i][0]
+        for t in result[i][1:]:
+            merge_text = merge_text_func(merge_text, t)
+
+
+        segment = {
+                    "uttid": f"{uttid}_s{int(s_start * 1000)}_e{int(s_end * 1000)}",
+                    # "text": " ".join(result[i]),
+                    "text": merge_text,
+                    "dur_s": s_end - s_start,
+                    "spk": _spk,
+                    "timestamp": timestamp_result[i],
+                }
+        
+        asr_spk_merged.append(segment)
+    return asr_spk_merged
+
+
 @dataclass
 class FireRedAsr2SystemConfig:
     vad_model_dir: str = "pretrained_models/FireRedVAD/VAD"
@@ -92,6 +193,7 @@ class FireRedAsr2SystemConfig:
     enable_vad: bool = True
     enable_lid: bool = True
     enable_punc: bool = True
+    spk_mode: str = "pyannote"
 
 
 class FireRedAsr2System:
@@ -129,8 +231,11 @@ class FireRedAsr2System:
         else:
             vad_segments = [(0, dur)]
             vad_result = {"timestamps" : vad_segments}
-
-        vad_segments = assign_speaker_to_segments(vad_segments, pyannote_spk_segments)
+        if self.config.spk_mode != "pyannote":
+            vad_segments = assign_speaker_to_segments(vad_segments, pyannote_spk_segments)
+        else:
+            vad_segments = pyannote_spk_segments
+        
         logger.info(f"pyannote_spk_segments: {pyannote_spk_segments}")
         logger.info(f"vad_segments_with_speaker: {vad_segments}")
         # with open(f"pyannote_spk_segments.txt", "w") as f:
@@ -175,6 +280,30 @@ class FireRedAsr2System:
 
             batch_asr_uttid = []
             batch_asr_wav = []
+
+        # ------------------------------------------------------------------------------------------
+        # 按词分配说话人
+        
+
+        
+        if self.config.asr_config.return_timestamp:
+            words_results = []
+            for asr_result in asr_results:
+                if "timestamp" in asr_result:
+                    start_ms, end_ms = asr_result["uttid"].split("_")[-2:]
+                    assert start_ms.startswith("s") and end_ms.startswith("e")
+                    start_ms, end_ms = int(start_ms[1:]), int(end_ms[1:])
+                    
+                    words_results += [(word, start_s + start_ms * 1.0 / 1000, end_s + start_ms * 1.0 / 1000) for word, start_s, end_s in asr_result["timestamp"]]
+            
+            logger.info(f"words_results: {words_results}")
+
+            asr_results = assign_words_to_speakers(words_results, pyannote_spk_segments, uttid)
+            lid_results = [None] * len(asr_results)
+            spk_results = [asr_result["spk"] for asr_result in asr_results]
+            logger.info(f"assign_words_to_speakers asr_results: {asr_results}")
+        # ------------------------------------------------------------------------------------------
+
 
         # 4. ASR output to Postprocess input
         if self.config.enable_punc:

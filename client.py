@@ -1,15 +1,23 @@
+import argparse
 import requests
 import json
+import time
 
-url = "http://0.0.0.0:9081/v1/chat/completions"
+parser = argparse.ArgumentParser(description="音频文件识别客户端")
+parser.add_argument("--input", type=str, default="test.wav", help="音频文件路径")
+parser.add_argument("--output", type=str, default="output/output.json", help="输出文件路径")
+parser.add_argument("--ip", type=str, default="0.0.0.0", help="ip")
+parser.add_argument("--port", type=int, default=8081, help="port")
+args = parser.parse_args()
+
+url = f"http://{args.ip}:{args.port}/v1/chat/completions"
 
 headers = {
-    "api-key": "<api-key>"
+    "api-key": "EMPTY"
 }
 
-# audio_file_path = "./test.wav"
-audio_file_path = "test_39940_42556.wav"
-output_file_path = f"output_{audio_file_path.split(".")[0]}.json"
+audio_file_path = args.input
+output_file_path = args.output
 
 try:
     with open(audio_file_path, "rb") as audio_file:
@@ -17,8 +25,11 @@ try:
             "file": audio_file
         }
         print("正在发送请求，请稍候...")
+        start_time = time.time()
         response = requests.post(url, headers=headers, files=files)
-        
+        end_time = time.time()
+        print(f"time: {end_time - start_time}")
+    # if output_file_path is not "None"
     with open(output_file_path, "w", encoding="utf-8") as out_file:
         out_file.write(json.dumps(response.json(), indent=4, ensure_ascii=False))
 
@@ -31,3 +42,4 @@ except FileNotFoundError:
     print(f"错误: 找不到文件 {audio_file_path}，请检查路径是否正确。")
 except Exception as e:
     print(f"发生错误: {e}")
+

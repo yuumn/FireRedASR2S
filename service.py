@@ -98,7 +98,8 @@ asr_system_config = FireRedAsr2SystemConfig(
     args.punc_model_dir,
     vad_config, lid_config, asr_config, punc_config,
     args.asr_batch_size, args.punc_batch_size,
-    args.enable_vad, args.enable_lid, args.enable_punc
+    args.enable_vad, args.enable_lid, args.enable_punc, 
+    args.spk_mode
 )
 asr_system = FireRedAsr2System(asr_system_config)
 
@@ -137,7 +138,7 @@ def convert_audio(input_audio_path, output_wav_path):
 
 def post_process_merge_result(result):
     # return result
-    # 合并条件：相同说话人且时间间隔≤200ms
+    # 合并条件：相同说话人且时间间隔≤100ms
     def get_start_end_spk_text(sentence):
         return {
             "start": sentence["start_ms"],
@@ -160,7 +161,7 @@ def post_process_merge_result(result):
     for idx in range(1, sentences_length):
         chunk = sentences[idx]
         
-        if chunk["spk"] == cur_chunk["spk"] and chunk["start"] - cur_chunk["end"] <= 200:
+        if chunk["spk"] == cur_chunk["spk"] and chunk["start"] - cur_chunk["end"] <= 100:
             cur_chunk["text"] += chunk["text"]
             cur_chunk["end"] = chunk["end"]
             if idx == sentences_length - 1:
@@ -259,5 +260,5 @@ def speech_recognition_Timestamp_cam_identify_speakers():
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=9082, debug=False)
+    app.run(host='0.0.0.0', port=8081, debug=False)
 

@@ -128,7 +128,7 @@ class FireRedVad:
         #         chunk = result[idx]
         #         if chunk["speaker"] == cur_chunk["speaker"] and chunk["start"] - cur_chunk["end"] <= gap_threshold_ms:
         #             cur_chunk["end"] = chunk["end"]
-        #             if idx == result_length - 1 or cur_chunk["end"] - cur_chunk["start"] >= 30000:
+        #             if idx == result_length - 1 or cur_chunk["end"] - cur_chunk["start"] >= 10000:
         #                 result_merge.append(cur_chunk)
         #             continue
         #         result_merge.append(cur_chunk)

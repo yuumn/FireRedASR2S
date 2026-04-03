@@ -7,7 +7,7 @@ class FireRedASR2Config:
 
     """ Module Switches """
     enable_vad: int = 1
-    enable_lid: int = 1
+    enable_lid: int = 0
     enable_punc: int = 1
     enable_spk: int = 1
 
@@ -61,6 +61,7 @@ class FireRedASR2Config:
 
     """ Spk Options """
     spk_model_dir: str = "/workspace/models/FireRedASR2S/pyannote/speaker-diarization-community-1"
+    spk_mode: str = os.environ.get("SPK_MODE", "vad")
     
 
 
