@@ -343,17 +343,13 @@ class FireRedAsr2System:
             assert asr_result["uttid"] == punc_result["uttid"], f"fix code: {asr_result} | {punc_result}"
             start_ms, end_ms = asr_result["uttid"].split("_")[-2:]
             assert start_ms.startswith("s") and end_ms.startswith("e")
-            logger.info(f"1.---------")
             start_ms, end_ms = int(start_ms[1:]), int(end_ms[1:])
-            logger.info(f"2.---------")
             if self.config.asr_config.return_timestamp:
                 sub_sentences = []
                 if self.config.enable_punc:
                     for i, punc_sent in enumerate(punc_result["punc_sentences"]):
-                        logger.info(f"3.---------")
                         start = start_ms + int(punc_sent["start_s"]*1000)
                         end = start_ms + int(punc_sent["end_s"]*1000)
-                        logger.info(f"4.---------")
                         if i == 0:
                             start = start_ms
                         if i == len(punc_result["punc_sentences"]) - 1:
@@ -400,9 +396,7 @@ class FireRedAsr2System:
             
             # if "timestamp" in asr_result:
             #     for w, s, e in asr_result["timestamp"]:
-            #         logger.info(f"5.---------")
             #         word = {"start_ms": int(s*1000+start_ms), "end_ms":int(e*1000+start_ms), "text": w}
-            #         logger.info(f"6.---------")
             #         words.append(word)
         # vad_segments_ms = [(int(s*1000), int(e*1000)) for ((s, e), spk) in vad_segments]
         # vad_segments_ms = [(int(s*1000), int(e*1000)) for (s, e) in vad_result["timestamps"]]
@@ -413,9 +407,9 @@ class FireRedAsr2System:
         openai_format_segments = [
             {
                 "type": "transcript.text.segment",
-                "id": f"seg_{i}",
-                "start": chunk["start_ms"],
-                "end": chunk["end_ms"],
+                "id": f"seg_{i+1:03d}",
+                "start": round(chunk["start_ms"] * 1.0 / 1000.0, 1),
+                "end": round(chunk["end_ms"] * 1.0 / 1000.0, 1),
                 "text": chunk["text"],
                 "speaker": chunk["spk"],
             } for i, chunk in enumerate(sentences)
@@ -432,7 +426,7 @@ class FireRedAsr2System:
         logger.info(f"openai_format_segments: {openai_format_segments}")
         return {
             "task": "transcribe",
-            "duration": dur,
+            "duration": round(dur, 1),
             "text": text,
             "segments": openai_format_segments,
             "usage": {

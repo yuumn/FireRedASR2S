@@ -25,3 +25,6 @@ def classify_text(text: str) -> str:
 
 x = "你好"
 print(classify_text(x))
+
+y = 8900
+print(f"{y+1:03d}")
