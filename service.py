@@ -31,7 +31,7 @@ from fireredasr2s.fireredasr2system import (FireRedAsr2System,
 from fireredasr2s.fireredlid import FireRedLidConfig
 from fireredasr2s.fireredpunc import FireRedPuncConfig
 from fireredasr2s.fireredvad import FireRedVadConfig
-
+import time
 
 
 app = Flask(__name__)
@@ -178,8 +178,9 @@ def post_process_merge_result(result):
 
 # 会议撰写
 # @app.route('/AsrCamWithIdentify', methods=['POST'])
-@app.route('/v1/chat/completions', methods=['POST'])
+@app.route('/v1/audio/transcriptions', methods=['POST'])
 def speech_recognition_Timestamp_cam_identify_speakers():
+    start_time = time.time()
     # 检查文件上传
     if 'file' not in request.files:
         return jsonify({"error": "No audio file provided"}), 400
@@ -229,22 +230,25 @@ def speech_recognition_Timestamp_cam_identify_speakers():
                 max_speakers,
             )
 
-        result = post_process_merge_result(result)
+        # result = post_process_merge_result(result)
         # 处理结果
         # processed_result = process_cam_result_with_identify_speakers(result,speaker_db,filepath,identify_speakers)
 
         os.remove(filepath)
         os.remove(filepath_convert)
+        end_time = time.time()
         if len(result) == 0:
             return jsonify({
                 "status": "error",
                 "result": "音频解析结果为空"
             })
         else:
-            return jsonify({
-                "status": "success",
-                "result": result
-            })
+            result["usage"]["seconds"] = round(end_time - start_time, 1)
+            return jsonify(result)
+            # return jsonify({
+            #     "status": "success",
+            #     "result": result
+            # })
 
     except Exception as e:
         # 清理文件
@@ -260,5 +264,5 @@ def speech_recognition_Timestamp_cam_identify_speakers():
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8081, debug=False)
-
+    port = int(os.environ.get("PORT", 8081))
+    app.run(host='0.0.0.0', port=port, debug=False)

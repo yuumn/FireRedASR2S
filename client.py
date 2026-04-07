@@ -4,13 +4,13 @@ import json
 import time
 
 parser = argparse.ArgumentParser(description="音频文件识别客户端")
-parser.add_argument("--input", type=str, default="test.wav", help="音频文件路径")
+parser.add_argument("--input", type=str, default="input/test.wav", help="音频文件路径")
 parser.add_argument("--output", type=str, default="output/output.json", help="输出文件路径")
 parser.add_argument("--ip", type=str, default="0.0.0.0", help="ip")
 parser.add_argument("--port", type=int, default=8081, help="port")
 args = parser.parse_args()
 
-url = f"http://{args.ip}:{args.port}/v1/chat/completions"
+url = f"http://{args.ip}:{args.port}/v1/audio/transcriptions"
 
 headers = {
     "api-key": "EMPTY"

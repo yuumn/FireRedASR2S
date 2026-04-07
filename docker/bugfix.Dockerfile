@@ -1,4 +1,4 @@
-FROM artifactory.devops.xiaohongshu.com/media/fireredasr2s:260401-red4
+FROM artifactory.devops.xiaohongshu.com/media/fireredasr2s:260402-red6
 
 ARG APP_DIR=/workspace/FireRedASR2S
 WORKDIR ${APP_DIR}

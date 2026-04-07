@@ -231,10 +231,10 @@ class FireRedAsr2System:
         else:
             vad_segments = [(0, dur)]
             vad_result = {"timestamps" : vad_segments}
-        if self.config.spk_mode != "pyannote":
-            vad_segments = assign_speaker_to_segments(vad_segments, pyannote_spk_segments)
-        else:
-            vad_segments = pyannote_spk_segments
+        # if self.config.spk_mode != "pyannote":
+        #     vad_segments = assign_speaker_to_segments(vad_segments, pyannote_spk_segments)
+        # else:
+        #     vad_segments = pyannote_spk_segments
         
         logger.info(f"pyannote_spk_segments: {pyannote_spk_segments}")
         logger.info(f"vad_segments_with_speaker: {vad_segments}")
@@ -243,13 +243,12 @@ class FireRedAsr2System:
         # 2. VAD output to ASR input
         asr_results = []
         lid_results = []
-        spk_results = []
+        # spk_results = []
         assert sample_rate == 16000
         batch_asr_uttid = []
         batch_asr_wav = []
-        for j, ((start_s, end_s), spk) in enumerate(vad_segments):
-        # for j, (start_s, end_s)in enumerate(vad_segments):
-            # spk = ""
+        # for j, ((start_s, end_s), spk) in enumerate(vad_segments):
+        for j, (start_s, end_s) in enumerate(vad_segments):
             wav_segment = wav_np[int(start_s*sample_rate):int(end_s*sample_rate)]
             vad_uttid = f"{uttid}_s{int(start_s*1000)}_e{int(end_s*1000)}"
             batch_asr_uttid.append(vad_uttid)
@@ -276,16 +275,16 @@ class FireRedAsr2System:
                     continue
                 asr_results.append(a_res)
                 lid_results.append(l_res)
-                spk_results.append(spk)
+                # spk_results.append(spk)
 
             batch_asr_uttid = []
             batch_asr_wav = []
 
         # ------------------------------------------------------------------------------------------
-        # 按词分配说话人
+        # 3.5 按词分配说话人
         
 
-        
+        spk_results = []
         if self.config.asr_config.return_timestamp:
             words_results = []
             for asr_result in asr_results:
@@ -344,13 +343,17 @@ class FireRedAsr2System:
             assert asr_result["uttid"] == punc_result["uttid"], f"fix code: {asr_result} | {punc_result}"
             start_ms, end_ms = asr_result["uttid"].split("_")[-2:]
             assert start_ms.startswith("s") and end_ms.startswith("e")
+            logger.info(f"1.---------")
             start_ms, end_ms = int(start_ms[1:]), int(end_ms[1:])
+            logger.info(f"2.---------")
             if self.config.asr_config.return_timestamp:
                 sub_sentences = []
                 if self.config.enable_punc:
                     for i, punc_sent in enumerate(punc_result["punc_sentences"]):
+                        logger.info(f"3.---------")
                         start = start_ms + int(punc_sent["start_s"]*1000)
                         end = start_ms + int(punc_sent["end_s"]*1000)
+                        logger.info(f"4.---------")
                         if i == 0:
                             start = start_ms
                         if i == len(punc_result["punc_sentences"]) - 1:
@@ -395,23 +398,45 @@ class FireRedAsr2System:
                     sentence["lang_confidence"] = lid_result["confidence"]
                 sentences.append(sentence)
             
-            if "timestamp" in asr_result:
-                for w, s, e in asr_result["timestamp"]:
-                    word = {"start_ms": int(s*1000+start_ms), "end_ms":int(e*1000+start_ms), "text": w}
-                    words.append(word)
-        vad_segments_ms = [(int(s*1000), int(e*1000)) for ((s, e), spk) in vad_segments]
+            # if "timestamp" in asr_result:
+            #     for w, s, e in asr_result["timestamp"]:
+            #         logger.info(f"5.---------")
+            #         word = {"start_ms": int(s*1000+start_ms), "end_ms":int(e*1000+start_ms), "text": w}
+            #         logger.info(f"6.---------")
+            #         words.append(word)
+        # vad_segments_ms = [(int(s*1000), int(e*1000)) for ((s, e), spk) in vad_segments]
         # vad_segments_ms = [(int(s*1000), int(e*1000)) for (s, e) in vad_result["timestamps"]]
         text = "".join(s["text"] for s in sentences)
         # Add space after English punctuation when followed by a letter
         text = re.sub(r'([.,!?])\s*([a-zA-Z])', r'\1 \2', text)
 
-        result = {
-            "uttid": uttid,
+        openai_format_segments = [
+            {
+                "type": "transcript.text.segment",
+                "id": f"seg_{i}",
+                "start": chunk["start_ms"],
+                "end": chunk["end_ms"],
+                "text": chunk["text"],
+                "speaker": chunk["spk"],
+            } for i, chunk in enumerate(sentences)
+        ]
+        # result = {
+        #     "uttid": uttid,
+        #     "text": text,
+        #     "sentences": sentences,
+        #     # "vad_segments_ms": vad_segments_ms,
+        #     "dur_s": dur,
+        #     # "words": words,
+        #     # "wav_path": wav_path
+        # }
+        logger.info(f"openai_format_segments: {openai_format_segments}")
+        return {
+            "task": "transcribe",
+            "duration": dur,
             "text": text,
-            "sentences": sentences,
-            # "vad_segments_ms": vad_segments_ms,
-            "dur_s": dur,
-            # "words": words,
-            # "wav_path": wav_path
+            "segments": openai_format_segments,
+            "usage": {
+                "type": "duration",
+                "seconds": 0.0
+            }
         }
-        return result
