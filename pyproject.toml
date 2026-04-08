@@ -27,5 +27,5 @@ fireredasr2s-cli = "fireredasr2s.fireredasr2s_cli:cli_main"
 [tool.setuptools.packages.find]
 include = ["fireredasr2s*"]
 
-[tool.uv.pip]
-extra-index-url = ["https://download.pytorch.org/whl/cu118"]
+# [tool.uv.pip]
+# extra-index-url = ["https://download.pytorch.org/whl/cu118"]

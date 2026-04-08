@@ -101,7 +101,6 @@ asr_system_config = FireRedAsr2SystemConfig(
     vad_config, lid_config, asr_config, punc_config,
     args.asr_batch_size, args.punc_batch_size,
     args.enable_vad, args.enable_lid, args.enable_punc, 
-    args.spk_mode
 )
 asr_system = FireRedAsr2System(asr_system_config)
 

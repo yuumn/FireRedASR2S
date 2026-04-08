@@ -16,3 +16,4 @@ github_old/
 logs/
 input/
 backup/
+*.egg-info/

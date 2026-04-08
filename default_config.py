@@ -61,7 +61,6 @@ class FireRedASR2Config:
 
     """ Spk Options """
     spk_model_dir: str = "/workspace/models/FireRedASR2S/pyannote/speaker-diarization-community-1"
-    spk_mode: str = os.environ.get("SPK_MODE", "vad")
     
 
 

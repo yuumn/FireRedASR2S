@@ -1,0 +1,26 @@
+FROM artifactory.devops.xiaohongshu.com/dockerhub/nvidia/cuda:12.8.1-cudnn-devel-ubuntu24.04
+
+ARG APP_DIR=/workspace/FireRedASR2S
+WORKDIR ${APP_DIR}
+COPY . .
+
+ENV PYANNOTE_METRICS_ENABLED=0
+ENV PIP_BREAK_SYSTEM_PACKAGES=1
+
+RUN export https_proxy=http://10.7.4.2:3128 && export http_proxy=http://10.7.4.2:3128 && \
+    apt-get update && apt-get install -y vim ffmpeg && \
+    curl -LsSf https://astral.sh/uv/install.sh | sh && \
+    uv venv --python 3.12 --seed && source .venv/bin/activate && \
+    uv pip install . && \
+    uv pip install ffmpeg-python omegaconf flask kaldi_native_fbank gunicorn gevent nvitop && \
+    uv pip install torchcodec==0.10 peft httpx urllib3 filetype wheel && \
+    # MAX_JOBS=4 uv pip install -U flash-attn --no-build-isolation && \
+    uv pip install pyannote.audio==4.0.4 && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* 
+
+ENV VIRTUAL_ENV="${APP_DIR}/.venv"
+ENV PATH="${APP_DIR}/.venv/bin:$PATH"
+
+WORKDIR ${APP_DIR}
+
+CMD ["/bin/bash"]

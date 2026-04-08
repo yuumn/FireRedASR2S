@@ -193,7 +193,6 @@ class FireRedAsr2SystemConfig:
     enable_vad: bool = True
     enable_lid: bool = True
     enable_punc: bool = True
-    spk_mode: str = "pyannote"
 
 
 class FireRedAsr2System:
@@ -231,11 +230,7 @@ class FireRedAsr2System:
         else:
             vad_segments = [(0, dur)]
             vad_result = {"timestamps" : vad_segments}
-        # if self.config.spk_mode != "pyannote":
-        #     vad_segments = assign_speaker_to_segments(vad_segments, pyannote_spk_segments)
-        # else:
-        #     vad_segments = pyannote_spk_segments
-        
+
         logger.info(f"pyannote_spk_segments: {pyannote_spk_segments}")
         logger.info(f"vad_segments_with_speaker: {vad_segments}")
         # with open(f"pyannote_spk_segments.txt", "w") as f:
