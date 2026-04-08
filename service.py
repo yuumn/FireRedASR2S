@@ -32,7 +32,9 @@ from fireredasr2s.fireredlid import FireRedLidConfig
 from fireredasr2s.fireredpunc import FireRedPuncConfig
 from fireredasr2s.fireredvad import FireRedVadConfig
 import time
-
+import httpx
+from urllib.parse import urlparse
+import filetype
 
 app = Flask(__name__)
 app.config['JSON_AS_ASCII'] = False  # 兼容旧版 Flask (< 2.2)
@@ -180,21 +182,49 @@ def post_process_merge_result(result):
 # @app.route('/AsrCamWithIdentify', methods=['POST'])
 @app.route('/v1/audio/transcriptions', methods=['POST'])
 def speech_recognition_Timestamp_cam_identify_speakers():
-    start_time = time.time()
+    # start_time = time.time()
     # 检查文件上传
+
+    # if 'file' not in request.files:
+    #     return jsonify({"error": "No audio file provided"}), 400
+
+    # file = request.files['file']
+    filepath = None
+    filename = None
     if 'file' not in request.files:
-        return jsonify({"error": "No audio file provided"}), 400
+        audio_url = request.form.get('url', None)
+        if audio_url == None:
+            return jsonify({"error": "Empty file"}), 400
+        
+        audio_file = httpx.get(audio_url).content
 
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({"error": "Empty filename"}), 400
+        kind = filetype.guess(audio_file)
 
-    # 保存上传文件
-    filename = secure_filename(file.filename)
-    filename = f"pid_{os.getpid()}_{filename}"
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        if not kind.mime.startswith("audio/"):
+            return jsonify({"error": "Not an audio file"}), 400
+
+        parsed_url = urlparse(audio_url)
+        path = parsed_url.path 
+        filename = os.path.basename(path) or "input.wav"
+        filename = f"pid_{os.getpid()}_{filename}"
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        with open(filepath, "wb") as f:
+            f.write(audio_file)
+
+    else:
+        file = request.files['file']
+        if file == "":
+            return jsonify({"error": "Empty filename"}), 400
+        # 保存上传文件
+        filename = secure_filename(file.filename)
+        filename = f"pid_{os.getpid()}_{filename}"
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+
+    if filepath == None or filename == None:
+        return jsonify({"error": "Empty file"}), 400
+        
     filepath_convert = os.path.join(app.config['UPLOAD_CONVERT_FOLDER'], filename.rsplit(".", 1)[0] + ".wav")
-    file.save(filepath)
 
     convert_audio(filepath, filepath_convert)
 
@@ -236,14 +266,14 @@ def speech_recognition_Timestamp_cam_identify_speakers():
 
         os.remove(filepath)
         os.remove(filepath_convert)
-        end_time = time.time()
+        # end_time = time.time()
         if len(result) == 0:
             return jsonify({
                 "status": "error",
                 "result": "音频解析结果为空"
             })
         else:
-            result["usage"]["seconds"] = round(end_time - start_time, 1)
+            # result["usage"]["seconds"] = round(end_time - start_time, 1)
             return jsonify(result)
             # return jsonify({
             #     "status": "success",

@@ -431,6 +431,6 @@ class FireRedAsr2System:
             "segments": openai_format_segments,
             "usage": {
                 "type": "duration",
-                "seconds": 0.0
+                "seconds": max(int(dur), 1)
             }
         }
